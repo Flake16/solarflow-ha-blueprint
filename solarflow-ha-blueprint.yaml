@@ -168,6 +168,7 @@ action:
         {% else %}
           {{ new_limit_raw }}
         {% endif %}
+      export_mode_helper_entity: !input export_mode_helper
       export_mode: >
         {% if soc >= soc_high_value %}
           {{ true }}
