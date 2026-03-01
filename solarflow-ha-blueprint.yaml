@@ -219,12 +219,12 @@ action:
             data:
               value: "{{ new_limit | round(0) }}"
 
-        default:
-          - service: number.set_value
-            target:
-              entity_id: "{{ inverter_entity }}"
-            data:
-              value: "{{ min_power_value }}"      
+    default:
+      - service: number.set_value
+        target:
+          entity_id: "{{ inverter_entity }}"
+        data:
+          value: "{{ min_power_value }}"      
   
   - service: >
       {{ 'input_boolean.turn_on' if export_mode == true else 'input_boolean.turn_off' }}
