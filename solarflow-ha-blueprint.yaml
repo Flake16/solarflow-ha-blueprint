@@ -1,0 +1,232 @@
+blueprint:
+  name: SolarFlow 800 Pro – Speicher- und Nachtmodusregelung
+  homeassistant:
+    min_version: 2023.1.0
+  description: >
+    Regelt einen SolarFlow 800 Pro vollständig über Home Assistant. 
+    Priorität: PV → Haus → Speicher → Einspeisung. 
+    Nachtmodus aktiviert Nulleinspeisung aus Batterie bei PV < Schwelle.
+  domain: automation
+  input:
+
+    grid_power_sensor:
+      name: Netzleistung Sensor
+      selector:
+        entity:
+          domain: sensor
+
+    battery_soc_sensor:
+      name: Batterie SOC Sensor (%)
+      selector:
+        entity:
+          domain: sensor
+
+    pv_power_sensor:
+      name: PV-Leistung Sensor
+      selector:
+        entity:
+          domain: sensor
+
+    inverter_limit_entity:
+      name: Wechselrichter Limit
+      description: Number-Entity zur Leistungsbegrenzung des SolarFlow
+      selector:
+        entity:
+          domain: number
+
+    min_power:
+      name: Minimale WR-Leistung (W)
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 800
+          unit_of_measurement: W
+
+    max_power:
+      name: Maximale WR-Leistung (W)
+      default: 800
+      selector:
+        number:
+          min: 0
+          max: 800
+          unit_of_measurement: W
+
+    soc_high:
+      name: SOC Einspeisung aktiv (%)
+      default: 95
+      selector:
+        number:
+          min: 50
+          max: 100
+          unit_of_measurement: "%"
+
+    soc_low:
+      name: SOC Rückkehr Ladepriorität (%)
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 95
+          unit_of_measurement: "%"
+
+    soc_min:
+      name: SOC Minimum Batterie (%)
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 50
+          unit_of_measurement: "%"
+
+    tolerance:
+      name: Totzone Netzleistung (W)
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 200
+          unit_of_measurement: W
+
+    ramp_limit:
+      name: Rampenlimit (W pro Zyklus)
+      default: 150
+      selector:
+        number:
+          min: 10
+          max: 1000
+          unit_of_measurement: W
+
+    grid_bias:
+      name: Grid Bias (W)
+      default: 10
+      selector:
+        number:
+          min: -50
+          max: 50
+          unit_of_measurement: W
+
+    pv_threshold_night:
+      name: PV Schwelle Nachtmodus (W)
+      default: 15
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: W
+
+    export_mode_helper:
+      name: Export Mode Helfer
+      selector:
+        entity:
+          domain: input_boolean
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  - trigger: time_pattern
+    seconds: "/5"
+
+action:
+
+  # Variablen für diesen Zyklus
+  - variables:
+      grid_entity: !input grid_power_sensor
+      pv_entity: !input pv_power_sensor
+      soc_entity: !input battery_soc_sensor
+      inverter_entity: !input inverter_limit_entity
+      grid_bias_value: !input grid_bias
+      ramp_limit_value: !input ramp_limit
+      max_power_value: !input max_power
+      min_power_value: !input min_power
+      soc_high_value: !input soc_high
+      soc_low_value: !input soc_low
+      soc_min_value: !input soc_min
+      tolerance_value: !input tolerance
+      pv_threshold_night_value: !input pv_threshold_night
+      grid_power: "{{ states(grid_entity) | float(0) }}"
+      abs_grid_power: "{{ grid_power | abs }}"
+      pv_power: "{{ states(pv_entity) | float(0) }}"
+      soc: "{{ states(soc_entity) | float(0) }}"
+      current_limit: "{{ states(inverter_entity) | float(0) }}"
+      delta: "{{ grid_power + grid_bias_value }}"
+      adjusted_delta: >
+        {% if delta > ramp_limit_value %}
+          {{ ramp_limit_value }}
+        {% elif delta < -ramp_limit_value %}
+          {{ -ramp_limit_value }}
+        {% else %}
+          {{ delta }}
+        {% endif %}
+      new_limit_raw: "{{ current_limit + adjusted_delta }}"
+      new_limit: >
+        {% if new_limit_raw > max_power_value %}
+          {{ max_power_value }}
+        {% elif new_limit_raw < min_power_value %}
+          {{ min_power_value }}
+        {% else %}
+          {{ new_limit_raw }}
+        {% endif %}
+      export_mode: >
+        {% if soc >= soc_high_value %}
+          {{ true }}
+        {% elif soc <= soc_low_value %}
+          {{ false }}
+        {% else %}
+          {{ states(export_mode_helper_entity) == 'on' }}
+        {% endif %}
+
+  - choose:
+
+      # Nachtmodus: PV < Schwelle → Batterie entladen (Nulleinspeisung)
+      - conditions:
+          - condition: template
+            value_template: "{{ pv_power < pv_threshold_night_value and soc > soc_min_value }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ abs_grid_power > tolerance_value }}"
+                sequence:
+                  - service: number.set_value
+                    target:
+                      entity_id: "{{ inverter_entity }}"
+                    data:
+                      value: "{{ new_limit | round(0) }}"
+
+      # Überschusseinspeisung bei vollem Akku
+      - conditions:
+          - condition: template
+            value_template: "{{ export_mode == true }}"
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: "{{ inverter_entity }}"
+            data:
+              value: "{{ max_power_value }}"
+
+      # Ladepriorität PV → Haus → Batterie
+      - conditions:
+          - condition: template
+            value_template: "{{ export_mode == false }}"
+        sequence:
+          - condition: template
+            value_template: "{{ abs_grid_power > tolerance_value }}"
+          - service: number.set_value
+            target:
+              entity_id: "{{ inverter_entity }}"
+            data:
+              value: "{{ new_limit | round(0) }}"
+
+        default:
+          - service: number.set_value
+            target:
+              entity_id: "{{ inverter_entity }}"
+            data:
+              value: "{{ min_power_value }}"      
+  
+  - service: >
+      {{ 'input_boolean.turn_on' if export_mode == true else 'input_boolean.turn_off' }}
+    target:
+      entity_id: !input export_mode_helper
