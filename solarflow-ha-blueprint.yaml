@@ -180,6 +180,17 @@ action:
 
   - choose:
 
+      # Absolute Priorität – Batterieschutz
+      - conditions:
+          - condition: template
+            value_template: "{{ soc <= soc_min_value }}"
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: "{{ inverter_entity }}"
+            data:
+              value: "{{ min_power_value }}"
+
       # Nachtmodus: PV < Schwelle → Batterie entladen (Nulleinspeisung)
       - conditions:
           - condition: template
