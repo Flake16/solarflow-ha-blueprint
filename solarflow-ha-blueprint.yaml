@@ -208,16 +208,13 @@ action:
           - condition: template
             value_template: "{{ pv_power < pv_threshold_night_value and soc > soc_min_value }}"
         sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ abs_grid_power > tolerance_value }}"
-                sequence:
-                  - service: number.set_value
-                    target:
-                      entity_id: "{{ inverter_entity }}"
-                    data:
-                      value: "{{ new_limit | round(0) }}"
+          - condition: template
+            value_template: "{{ abs_grid_power > tolerance_value }}"
+          - service: number.set_value
+            target:
+              entity_id: "{{ inverter_entity }}"
+            data:
+              value: "{{ new_limit | round(0) }}"
 
       # Überschusseinspeisung bei vollem Akku
       - conditions:
