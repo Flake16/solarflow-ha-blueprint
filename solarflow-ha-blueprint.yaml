@@ -143,6 +143,8 @@ action:
       soc_high_value: !input soc_high
       soc_low_value: !input soc_low
       soc_min_value: !input soc_min
+      soc_stale: >
+        {{ (now() - states[soc_entity].last_updated).total_seconds() > 120 }}
       tolerance_value: !input tolerance
       pv_threshold_night_value: !input pv_threshold_night
       grid_power: "{{ states(grid_entity) | float(0) }}"
@@ -179,6 +181,16 @@ action:
         {% endif %}
 
   - choose:
+      # Sensor zu alt → sicher abschalten
+      - conditions:
+          - condition: template
+            value_template: "{{ soc_stale }}"
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: "{{ inverter_entity }}"
+            data:
+              value: "{{ min_power_value }}"
 
       # Absolute Priorität – Batterieschutz
       - conditions:
