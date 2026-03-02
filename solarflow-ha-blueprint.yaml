@@ -182,15 +182,15 @@ action:
 
   - choose:
       # Sensor zu alt → sicher abschalten
-      - conditions:
-          - condition: template
-            value_template: "{{ soc_stale }}"
-        sequence:
-          - service: number.set_value
-            target:
-              entity_id: "{{ inverter_entity }}"
-            data:
-              value: "{{ min_power_value }}"
+      #- conditions:
+      #    - condition: template
+      #      value_template: "{{ soc_stale }}"
+      #  sequence:
+      #    - service: number.set_value
+      #      target:
+      #        entity_id: "{{ inverter_entity }}"
+      #      data:
+      #        value: "{{ min_power_value }}"
 
       # Absolute Priorität – Batterieschutz
       - conditions:
