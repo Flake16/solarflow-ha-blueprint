@@ -151,6 +151,10 @@ action:
       pv_power: "{{ states(pv_entity) | float(0) }}"
       soc: "{{ states(soc_entity) | float(0) }}"
       current_limit: "{{ states(inverter_entity) | float(0) }}"
+      sensor_valid: >
+        {{ states(grid_entity) not in ['unavailable', 'unknown', 'none']
+           and states(soc_entity) not in ['unavailable', 'unknown', 'none']
+           and states(pv_entity) not in ['unavailable', 'unknown', 'none'] }}
       delta: "{{ grid_power + grid_bias_value }}"
       adjusted_delta: >
         {% if delta > ramp_limit_value %}
@@ -179,6 +183,17 @@ action:
         {% endif %}
 
   - choose:
+      # Sensor ungültig → sicher abschalten
+      - conditions:
+          - condition: template
+            value_template: "{{ not sensor_valid }}"
+        sequence:
+          - service: number.set_value
+            target:
+              entity_id: "{{ inverter_entity }}"
+            data:
+              value: "{{ min_power_value }}"
+
       # Absolute Priorität – Batterieschutz
       - conditions:
           - condition: template
