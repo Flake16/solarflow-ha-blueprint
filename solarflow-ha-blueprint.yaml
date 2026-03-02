@@ -1,41 +1,41 @@
 blueprint:
-  name: SolarFlow 800 Pro – Speicher- und Nachtmodusregelung
+  name: SolarFlow 800 Pro – Battery and Night Mode Control
   homeassistant:
     min_version: 2023.1.0
   description: >
-    Regelt einen SolarFlow 800 Pro vollständig über Home Assistant. 
-    Priorität: PV → Haus → Speicher → Einspeisung. 
-    Nachtmodus aktiviert Nulleinspeisung aus Batterie bei PV < Schwelle.
+    Fully controls a SolarFlow 800 Pro via Home Assistant.
+    Priority: PV → Home → Battery → Export.
+    Night mode enforces zero export from battery when PV < threshold.
   domain: automation
   input:
 
     grid_power_sensor:
-      name: Netzleistung Sensor
+      name: Grid power sensor
       selector:
         entity:
           domain: sensor
 
     battery_soc_sensor:
-      name: Batterie SOC Sensor (%)
+      name: Battery SOC sensor (%)
       selector:
         entity:
           domain: sensor
 
     pv_power_sensor:
-      name: PV-Leistung Sensor
+      name: PV power sensor
       selector:
         entity:
           domain: sensor
 
     inverter_limit_entity:
-      name: Wechselrichter Limit
-      description: Number-Entity zur Leistungsbegrenzung des SolarFlow
+      name: Inverter power limit
+      description: Number entity to limit SolarFlow power
       selector:
         entity:
           domain: number
 
     min_power:
-      name: Minimale WR-Leistung (W)
+      name: Minimum inverter power (W)
       default: 0
       selector:
         number:
@@ -44,7 +44,7 @@ blueprint:
           unit_of_measurement: W
 
     max_power:
-      name: Maximale WR-Leistung (W)
+      name: Maximum inverter power (W)
       default: 800
       selector:
         number:
@@ -53,7 +53,7 @@ blueprint:
           unit_of_measurement: W
 
     soc_high:
-      name: SOC Einspeisung aktiv (%)
+      name: SOC export active (%)
       default: 95
       selector:
         number:
@@ -62,7 +62,7 @@ blueprint:
           unit_of_measurement: "%"
 
     soc_low:
-      name: SOC Rückkehr Ladepriorität (%)
+      name: SOC charge-priority return (%)
       default: 80
       selector:
         number:
@@ -71,7 +71,7 @@ blueprint:
           unit_of_measurement: "%"
 
     soc_min:
-      name: SOC Minimum Batterie (%)
+      name: SOC minimum battery (%)
       default: 20
       selector:
         number:
@@ -80,7 +80,7 @@ blueprint:
           unit_of_measurement: "%"
 
     tolerance:
-      name: Totzone Netzleistung (W)
+      name: Grid power dead zone (W)
       default: 20
       selector:
         number:
@@ -89,7 +89,7 @@ blueprint:
           unit_of_measurement: W
 
     ramp_limit:
-      name: Rampenlimit (W pro Zyklus)
+      name: Ramp limit (W per cycle)
       default: 150
       selector:
         number:
@@ -98,7 +98,7 @@ blueprint:
           unit_of_measurement: W
 
     grid_bias:
-      name: Grid Bias (W)
+      name: Grid bias (W)
       default: 10
       selector:
         number:
@@ -107,7 +107,7 @@ blueprint:
           unit_of_measurement: W
 
     pv_threshold_night:
-      name: PV Schwelle Nachtmodus (W)
+      name: PV threshold for night mode (W)
       default: 15
       selector:
         number:
@@ -116,7 +116,7 @@ blueprint:
           unit_of_measurement: W
 
     export_mode_helper:
-      name: Export Mode Helfer
+      name: Export mode helper
       selector:
         entity:
           domain: input_boolean
@@ -130,7 +130,7 @@ trigger:
 
 action:
 
-  # Variablen für diesen Zyklus
+  # Variables for this cycle
   - variables:
       grid_entity: !input grid_power_sensor
       pv_entity: !input pv_power_sensor
@@ -183,7 +183,7 @@ action:
         {% endif %}
 
   - choose:
-      # Sensor ungültig → sicher abschalten
+      # Sensor invalid → shut down safely
       - conditions:
           - condition: template
             value_template: "{{ not sensor_valid }}"
@@ -194,7 +194,7 @@ action:
             data:
               value: "{{ min_power_value }}"
 
-      # Absolute Priorität – Batterieschutz
+      # Absolute priority – protect battery
       - conditions:
           - condition: template
             value_template: "{{ soc <= soc_min_value }}"
@@ -205,7 +205,7 @@ action:
             data:
               value: "{{ min_power_value }}"
 
-      # Nachtmodus: PV < Schwelle → Batterie entladen (Nulleinspeisung)
+      # Night mode: PV < threshold → discharge battery (zero export)
       - conditions:
           - condition: template
             value_template: "{{ pv_power < pv_threshold_night_value and soc > soc_min_value }}"
@@ -218,7 +218,7 @@ action:
             data:
               value: "{{ new_limit | round(0) | int }}"
 
-      # Überschusseinspeisung bei vollem Akku
+      # Export excess when battery full
       - conditions:
           - condition: template
             value_template: "{{ export_mode == true }}"
@@ -229,7 +229,7 @@ action:
             data:
               value: "{{ max_power_value }}"
 
-      # Ladepriorität PV → Haus → Batterie
+      # Charge priority PV → home → battery
       - conditions:
           - condition: template
             value_template: "{{ export_mode == false }}"
