@@ -11,31 +11,35 @@ blueprint:
 
     grid_power_sensor:
       name: Grid power sensor
+      description: Sensor measuring current grid power. Positive = grid consumption, negative = grid feed-in.
       selector:
         entity:
           domain: sensor
 
     battery_soc_sensor:
       name: Battery SOC sensor (%)
+      description: Sensor reporting the current battery state of charge in percent (0-100%).
       selector:
         entity:
           domain: sensor
 
     pv_power_sensor:
       name: PV power sensor
+      description: Sensor measuring current solar panel power output in watts.
       selector:
         entity:
           domain: sensor
 
     inverter_limit_entity:
       name: Inverter power limit
-      description: Number entity to limit SolarFlow power
+      description: Number entity to control the SolarFlow power output limit in watts.
       selector:
         entity:
           domain: number
 
     min_power:
       name: Minimum inverter power (W)
+      description: Minimum inverter output power. Set to 0 to allow full shutdown.
       default: 0
       selector:
         number:
@@ -45,6 +49,7 @@ blueprint:
 
     max_power:
       name: Maximum inverter power (W)
+      description: Maximum inverter output power. Should not exceed 800W for SolarFlow 800 Pro.
       default: 800
       selector:
         number:
@@ -54,6 +59,7 @@ blueprint:
 
     soc_high:
       name: SOC export active (%)
+      description: Battery SOC threshold to activate grid feed-in mode. Export mode turns on above this value.
       default: 95
       selector:
         number:
@@ -63,6 +69,7 @@ blueprint:
 
     soc_low:
       name: SOC charge-priority return (%)
+      description: Battery SOC threshold to return to charge priority. Export mode turns off below this value.
       default: 80
       selector:
         number:
@@ -72,6 +79,7 @@ blueprint:
 
     soc_min:
       name: SOC minimum battery (%)
+      description: Absolute minimum battery SOC. Inverter shuts down below this value to protect the battery.
       default: 20
       selector:
         number:
@@ -81,6 +89,7 @@ blueprint:
 
     tolerance:
       name: Grid power dead zone (W)
+      description: Dead zone for grid power regulation. Prevents constant adjustments for small deviations.
       default: 20
       selector:
         number:
@@ -90,6 +99,7 @@ blueprint:
 
     ramp_limit:
       name: Ramp limit (W per cycle)
+      description: Maximum inverter limit change per 5-second cycle in watts. Lower values result in smoother regulation.
       default: 150
       selector:
         number:
@@ -99,6 +109,7 @@ blueprint:
 
     grid_bias:
       name: Grid bias (W)
+      description: Target grid consumption offset in watts. Positive value keeps a small grid draw to prevent accidental feed-in.
       default: 10
       selector:
         number:
@@ -108,6 +119,7 @@ blueprint:
 
     pv_threshold_night:
       name: PV threshold for night mode (W)
+      description: PV power threshold below which night mode activates. Battery discharges to cover household consumption.
       default: 15
       selector:
         number:
@@ -117,6 +129,7 @@ blueprint:
 
     export_mode_helper:
       name: Export mode helper
+      description: input_boolean helper entity to persist export mode state between automation cycles.
       selector:
         entity:
           domain: input_boolean
