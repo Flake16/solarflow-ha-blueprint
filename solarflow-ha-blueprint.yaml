@@ -136,6 +136,7 @@ action:
       pv_entity: !input pv_power_sensor
       soc_entity: !input battery_soc_sensor
       inverter_entity: !input inverter_limit_entity
+      export_mode_helper_entity: !input export_mode_helper
       grid_bias_value: !input grid_bias
       ramp_limit_value: !input ramp_limit
       max_power_value: !input max_power
@@ -168,7 +169,6 @@ action:
         {% else %}
           {{ new_limit_raw }}
         {% endif %}
-      export_mode_helper_entity: !input export_mode_helper
       export_mode: >
         {% if soc >= soc_high_value %}
           {{ true }}
@@ -201,7 +201,7 @@ action:
             target:
               entity_id: "{{ inverter_entity }}"
             data:
-              value: "{{ new_limit | round(0) }}"
+              value: "{{ new_limit | round(0) | int }}"
 
       # Überschusseinspeisung bei vollem Akku
       - conditions:
@@ -225,7 +225,7 @@ action:
             target:
               entity_id: "{{ inverter_entity }}"
             data:
-              value: "{{ new_limit | round(0) }}"
+              value: "{{ new_limit | round(0) | int }}"
 
     default:
       - service: number.set_value
