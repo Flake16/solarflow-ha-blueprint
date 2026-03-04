@@ -160,7 +160,6 @@ action:
       tolerance_value: !input tolerance
       pv_threshold_night_value: !input pv_threshold_night
       grid_power: "{{ states(grid_entity) | float(0) }}"
-      abs_grid_power: "{{ grid_power | abs }}"
       pv_power: "{{ states(pv_entity) | float(0) }}"
       soc: "{{ states(soc_entity) | float(0) }}"
       current_limit: "{{ states(inverter_entity) | float(0) }}"
@@ -169,6 +168,7 @@ action:
            and states(soc_entity) not in ['unavailable', 'unknown', 'none']
            and states(pv_entity) not in ['unavailable', 'unknown', 'none'] }}
       delta: "{{ grid_power + grid_bias_value }}"
+      abs_delta: "{{ delta | abs }}"
       adjusted_delta: >
         {% if delta > ramp_limit_value %}
           {{ ramp_limit_value }}
@@ -224,7 +224,7 @@ action:
             value_template: "{{ pv_power < pv_threshold_night_value and soc > soc_min_value }}"
         sequence:
           - condition: template
-            value_template: "{{ abs_grid_power > tolerance_value }}"
+            value_template: "{{ abs_delta > tolerance_value }}"
           - service: number.set_value
             target:
               entity_id: "{{ inverter_entity }}"
@@ -248,7 +248,7 @@ action:
             value_template: "{{ export_mode == false }}"
         sequence:
           - condition: template
-            value_template: "{{ abs_grid_power > tolerance_value }}"
+            value_template: "{{ abs_delta > tolerance_value }}"
           - service: number.set_value
             target:
               entity_id: "{{ inverter_entity }}"
