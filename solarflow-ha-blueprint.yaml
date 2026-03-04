@@ -167,7 +167,7 @@ action:
         {{ states(grid_entity) not in ['unavailable', 'unknown', 'none']
            and states(soc_entity) not in ['unavailable', 'unknown', 'none']
            and states(pv_entity) not in ['unavailable', 'unknown', 'none'] }}
-      delta: "{{ grid_power + grid_bias_value }}"
+      delta: "{{ grid_power - grid_bias_value }}"
       abs_delta: "{{ delta | abs }}"
       adjusted_delta: >
         {% if delta > ramp_limit_value %}
