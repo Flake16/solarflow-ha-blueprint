@@ -187,7 +187,9 @@ action:
           {{ new_limit_raw }}
         {% endif %}
       export_mode: >
-        {% if soc >= soc_high_value %}
+        {% if pv_power < delta %}
+          {{ false }}
+        {% elif soc >= soc_high_value %}
           {{ true }}
         {% elif soc <= soc_low_value %}
           {{ false }}
