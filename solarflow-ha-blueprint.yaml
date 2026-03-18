@@ -240,7 +240,7 @@ action:
             target:
               entity_id: "{{ inverter_entity }}"
             data:
-              value: "{{ max_power_value }}"
+              value: "{{ pv_power | round(0) | int }}"
 
       # Charge priority PV → home → battery
       - conditions:
