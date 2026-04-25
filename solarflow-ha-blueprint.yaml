@@ -238,11 +238,18 @@ action:
           - condition: template
             value_template: "{{ export_mode == true }}"
         sequence:
+          - condition: template
+            value_template: "{{ abs_delta > tolerance_value }}"
           - service: number.set_value
             target:
               entity_id: "{{ inverter_entity }}"
             data:
-              value: "{{ pv_power | round(0) | int }}"
+              value: >
+                {% if grid_power >= 0 and pv_power > grid_power %}
+                  {{ pv_power | round(0) | int }}
+                {% else %}
+                  {{ new_limit | round(0) | int }}
+                {% endif %}
 
       # Charge priority PV → home → battery
       - conditions:
