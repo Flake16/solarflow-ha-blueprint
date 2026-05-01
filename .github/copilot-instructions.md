@@ -35,19 +35,21 @@ new_limit = clamp(current_limit + adjusted_delta, min_power, max_power)
 - `soc_high` / `soc_low`: Hysteresis thresholds (default 95% / 80%)
 - `tolerance`: Ignores small grid swings < this value
 
-## Modification Guidelines
-- **Adjust soc_high/soc_low:** Only change if adding different battery profiles (don't add new modes without understanding hysteresis risks)
-- **Tweak power ramp:** Increment carefully—high values cause oscillations; low values prevent responsiveness
-- **Grid bias tuning:** Increase for under-frequency support; rarely needs change
-- **PV threshold:** Project-specific; only adjust if local solar drops earlier/later than expected
+## Execution Behavior
+- Runs every 5 seconds using `time_pattern: seconds: "/5"`
+- Uses `mode: restart` and `max_exceeded: silent` so only the latest cycle is applied
+- Uses `export_mode_helper` to persist the current export mode when SOC is between `soc_low` and `soc_high`
 
-## Testing & Validation
-- Trigger runs every 5 seconds (`time_pattern: seconds: "/5"`) → quick feedback
-- Blueprint restarts on trigger (`mode: restart`; `max_exceeded: silent`) → only latest calculation applies
-- Manual validation: Set `grid_bias` to 0, trigger manually via Developer Tools, watch inverter limit entity response
+## Decision Priorities
+1. Invalid or unavailable sensors → set inverter to `min_power`
+2. `soc <= soc_min` → protect battery by forcing `min_power`
+3. Night mode (`pv < pv_threshold_night`) → adjust inverter limit for zero battery export
+4. Export mode active → allow export and use PV as the inverter limit when house load is present
+5. Charge priority → adjust inverter limit to balance PV, household load, and battery charging
+6. Default fallback → set `min_power`
 
 ## Common Pitfalls (Avoid)
-- **Don't remove hysteresis:** Export/charging modes will oscillate if using single SOC threshold
-- **Don't add logic outside choose blocks:** This breaks the mode prioritization
-- **Don't forget grid_power sign convention:** Negative = house exporting (common confusion point)
-- **Avoid hardcoding entity IDs:** Always use input variables; blueprints must be reusable
+- **Do not remove hysteresis:** Separate `soc_high` and `soc_low` thresholds prevent mode oscillation.
+- **Do not hardcode entity IDs:** Use blueprint inputs for all entities.
+- **Do not assume `grid_bias` is added:** The blueprint subtracts `grid_bias` from `grid_power`.
+- **Do not ignore `soc_min`:** It is the battery protection cutoff.
