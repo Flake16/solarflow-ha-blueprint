@@ -134,7 +134,7 @@ blueprint:
         entity:
           domain: input_boolean
 
-mode: restart
+mode: single
 max_exceeded: silent
 
 trigger:
@@ -187,7 +187,9 @@ action:
           {{ new_limit_raw }}
         {% endif %}
       export_mode: >
-        {% if pv_power < delta %}
+        {% if pv_power < pv_threshold_night_value %}
+          {{ false }}
+        {% elif pv_power < delta %}
           {{ false }}
         {% elif soc >= soc_high_value %}
           {{ true }}
@@ -201,37 +203,13 @@ action:
       # Sensor invalid → shut down safely
       - conditions:
           - condition: template
-            value_template: "{{ not sensor_valid }}"
+            value_template: "{{ not sensor_valid or soc <= soc_min_value }}"
         sequence:
           - service: number.set_value
             target:
               entity_id: "{{ inverter_entity }}"
             data:
               value: "{{ min_power_value }}"
-
-      # Absolute priority – protect battery
-      - conditions:
-          - condition: template
-            value_template: "{{ soc <= soc_min_value }}"
-        sequence:
-          - service: number.set_value
-            target:
-              entity_id: "{{ inverter_entity }}"
-            data:
-              value: "{{ min_power_value }}"
-
-      # Night mode: PV < threshold → discharge battery (zero export)
-      - conditions:
-          - condition: template
-            value_template: "{{ pv_power < pv_threshold_night_value and soc > soc_min_value }}"
-        sequence:
-          - condition: template
-            value_template: "{{ abs_delta > tolerance_value }}"
-          - service: number.set_value
-            target:
-              entity_id: "{{ inverter_entity }}"
-            data:
-              value: "{{ new_limit | round(0) | int }}"
 
       # Export excess when battery full
       - conditions:
@@ -245,11 +223,8 @@ action:
               entity_id: "{{ inverter_entity }}"
             data:
               value: >
-                {% if grid_power >= 0 and pv_power > grid_power %}
-                  {{ pv_power | round(0) | int }}
-                {% else %}
-                  {{ new_limit | round(0) | int }}
-                {% endif %}
+                {% set pv_capped = [pv_power, max_power_value] | min | round(0) | int %}
+                {{ [new_limit, pv_capped] | max | round(0) | int }}
 
       # Charge priority PV → home → battery
       - conditions:
@@ -262,14 +237,7 @@ action:
             target:
               entity_id: "{{ inverter_entity }}"
             data:
-              value: "{{ new_limit | round(0) | int }}"
-
-    default:
-      - service: number.set_value
-        target:
-          entity_id: "{{ inverter_entity }}"
-        data:
-          value: "{{ min_power_value }}"      
+              value: "{{ new_limit | round(0) | int }}"  
   
   - service: >
       {{ 'input_boolean.turn_on' if export_mode == true else 'input_boolean.turn_off' }}
